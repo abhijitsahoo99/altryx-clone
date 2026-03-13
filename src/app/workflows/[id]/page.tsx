@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { ReactFlowProvider } from "@xyflow/react";
 
 import { useWorkflowStore } from "@/hooks/useWorkflow";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { api } from "@/lib/api";
 import { WorkflowHeader } from "@/components/workflow/WorkflowHeader";
 import { ToolPalette } from "@/components/toolbar/ToolPalette";
@@ -18,6 +19,7 @@ export default function WorkflowEditorPage() {
   const [loading, setLoading] = useState(true);
 
   const { setWorkflowId, setWorkflowName, setNodes, setEdges } = useWorkflowStore();
+  useKeyboardShortcuts();
 
   useEffect(() => {
     async function load() {
