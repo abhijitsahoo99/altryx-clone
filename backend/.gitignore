@@ -6,3 +6,4 @@ data/uploads/
 data/outputs/
 data/*.db
 .venv/
+.next/
