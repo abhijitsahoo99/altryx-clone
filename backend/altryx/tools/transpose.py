@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import transpose_dataframe
 
 
 class TransposeTool(BaseTool):
@@ -13,18 +14,10 @@ class TransposeTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         header_column = config.get("header_column", "")
 
-        if header_column and header_column in df.columns:
-            df = df.set_index(header_column)
-
-        result = df.T.reset_index()
-        result.columns = [str(c) for c in result.columns]
-
-        if result.columns[0] == "index":
-            result = result.rename(columns={"index": "field_name"})
-
+        result = transpose_dataframe(df, header_column=header_column or None)
         return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:

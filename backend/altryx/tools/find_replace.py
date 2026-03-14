@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import find_replace_multiple
 
 
 class FindReplaceTool(BaseTool):
@@ -13,7 +14,7 @@ class FindReplaceTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         column = config.get("column", "")
         replacements = config.get("replacements", [])
         use_regex = config.get("use_regex", False)
@@ -22,20 +23,14 @@ class FindReplaceTool(BaseTool):
         if not column or column not in df.columns:
             raise ValueError(f"Column '{column}' not found")
 
-        for repl in replacements:
-            find_val = repl.get("find", "")
-            replace_val = repl.get("replace", "")
-            if not find_val:
-                continue
-
-            df[column] = df[column].astype(str).str.replace(
-                find_val,
-                replace_val,
-                regex=use_regex,
-                case=case_sensitive,
-            )
-
-        return {"output": df}
+        result = find_replace_multiple(
+            df,
+            column=column,
+            replacements=replacements,
+            use_regex=use_regex,
+            case_sensitive=case_sensitive,
+        )
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

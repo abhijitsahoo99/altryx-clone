@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import add_eval_column
 
 
 class FormulaTool(BaseTool):
@@ -13,15 +14,15 @@ class FormulaTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         output_column = config.get("output_column", "new_column")
         expression = config.get("expression", "")
 
         if not expression:
-            return {"output": df}
+            return {"output": df.copy()}
 
-        df[output_column] = df.eval(expression)
-        return {"output": df}
+        result = add_eval_column(df, output_column, expression)
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

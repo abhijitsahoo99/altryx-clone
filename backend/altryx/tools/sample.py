@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import sample_rows, sample_percentage
 
 
 class SampleTool(BaseTool):
@@ -13,23 +14,17 @@ class SampleTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         method = config.get("method", "first_n")
         n = config.get("n", 100)
 
-        if method == "first_n":
-            result = df.head(n)
-        elif method == "last_n":
-            result = df.tail(n)
-        elif method == "random_n":
-            result = df.sample(n=min(n, len(df)))
-        elif method == "random_pct":
-            pct = config.get("percentage", 10) / 100
-            result = df.sample(frac=pct)
+        if method == "random_pct":
+            pct = config.get("percentage", 10)
+            result = sample_percentage(df, pct)
         else:
-            result = df.head(n)
+            result = sample_rows(df, mode=method, n=n)
 
-        return {"output": result.reset_index(drop=True)}
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

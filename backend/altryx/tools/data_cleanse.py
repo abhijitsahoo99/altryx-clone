@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import cleanse_columns
 
 
 class DataCleanseTool(BaseTool):
@@ -13,33 +14,15 @@ class DataCleanseTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
-
-        if config.get("trim_whitespace", False):
-            str_cols = df.select_dtypes(include=["object"]).columns
-            for col in str_cols:
-                df[col] = df[col].str.strip()
-
-        case = config.get("change_case")
-        if case:
-            str_cols = df.select_dtypes(include=["object"]).columns
-            for col in str_cols:
-                if case == "upper":
-                    df[col] = df[col].str.upper()
-                elif case == "lower":
-                    df[col] = df[col].str.lower()
-                elif case == "title":
-                    df[col] = df[col].str.title()
-
-        if config.get("remove_nulls", False):
-            df = df.dropna()
-
-        if config.get("remove_empty_strings", False):
-            str_cols = df.select_dtypes(include=["object"]).columns
-            for col in str_cols:
-                df = df[df[col] != ""]
-
-        return {"output": df.reset_index(drop=True)}
+        df = inputs["input"]
+        result = cleanse_columns(
+            df,
+            case=config.get("change_case"),
+            strip_whitespace=config.get("trim_whitespace", False),
+            remove_nulls=config.get("remove_nulls", False),
+            remove_empty_strings=config.get("remove_empty_strings", False),
+        )
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

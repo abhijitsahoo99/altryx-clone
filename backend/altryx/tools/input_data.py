@@ -4,6 +4,7 @@ import pandas as pd
 
 from altryx.config import UPLOAD_DIR
 from altryx.tools.base import BaseTool
+from altryx.utils import read_csv_file, read_excel_sheet
 
 
 class InputDataTool(BaseTool):
@@ -39,10 +40,10 @@ class InputDataTool(BaseTool):
 
         if file_format == "csv":
             delimiter = config.get("delimiter", ",")
-            df = pd.read_csv(path, delimiter=delimiter)
+            df = read_csv_file(str(path), delimiter=delimiter)
         elif file_format in ("xlsx", "xls"):
-            sheet = config.get("sheet_name", 0)
-            df = pd.read_excel(path, sheet_name=sheet)
+            sheet = config.get("sheet_name", "Sheet1")
+            df = read_excel_sheet(str(path), sheet_name=sheet)
         elif file_format == "json":
             df = pd.read_json(path)
         else:

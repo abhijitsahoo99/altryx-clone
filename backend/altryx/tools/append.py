@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import append_fields
 
 
 class AppendTool(BaseTool):
@@ -21,17 +22,7 @@ class AppendTool(BaseTool):
         if source.empty:
             return {"output": target}
 
-        # Horizontal append: cross join (each row of target gets all rows of source)
-        # For large datasets this can be expensive, but matches Alteryx behavior
-        target_copy = target.copy()
-        source_copy = source.copy()
-
-        target_copy["_merge_key"] = 1
-        source_copy["_merge_key"] = 1
-
-        result = target_copy.merge(source_copy, on="_merge_key", suffixes=("", "_appended"))
-        result = result.drop(columns=["_merge_key"])
-
+        result = append_fields(target, source)
         return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:

@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import crosstab_pivot, crosstab_count
 
 
 class CrossTabTool(BaseTool):
@@ -13,7 +14,7 @@ class CrossTabTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         row_field = config.get("row_field", "")
         column_field = config.get("column_field", "")
         value_field = config.get("value_field", "")
@@ -23,27 +24,16 @@ class CrossTabTool(BaseTool):
             raise ValueError("Row field and column field are required")
 
         if value_field and value_field in df.columns:
-            agg_map = {
-                "count": "count",
-                "sum": "sum",
-                "mean": "mean",
-                "min": "min",
-                "max": "max",
-            }
-            agg_func = agg_map.get(aggregation, "count")
-            result = pd.pivot_table(
+            result = crosstab_pivot(
                 df,
-                values=value_field,
-                index=row_field,
-                columns=column_field,
-                aggfunc=agg_func,
-                fill_value=0,
+                group_by=row_field,
+                header_column=column_field,
+                value_column=value_field,
+                agg_func=aggregation,
             )
         else:
-            result = pd.crosstab(df[row_field], df[column_field])
+            result = crosstab_count(df, row_field, column_field)
 
-        result = result.reset_index()
-        result.columns = [str(c) for c in result.columns]
         return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
