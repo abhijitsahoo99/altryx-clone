@@ -47,7 +47,7 @@ export const TOOLS: ToolInfo[] = [
   { type: "output_data", label: "Output Data", category: "IO", icon: FileOutput, color: "#3b82f6", inputs: ["input"], outputs: ["output"] },
 
   // Preparation
-  { type: "filter", label: "Filter", category: "Preparation", icon: Filter, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
+  { type: "filter", label: "Filter", category: "Preparation", icon: Filter, color: "#8b5cf6", inputs: ["input"], outputs: ["true", "false"] },
   { type: "select", label: "Select", category: "Preparation", icon: Columns, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
   { type: "formula", label: "Formula", category: "Preparation", icon: Calculator, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
   { type: "sort", label: "Sort", category: "Preparation", icon: ArrowUpDown, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },

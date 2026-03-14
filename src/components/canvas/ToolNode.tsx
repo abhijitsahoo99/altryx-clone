@@ -80,12 +80,23 @@ function ToolNodeComponent({ id, data, selected }: NodeProps) {
           id={handle}
           style={{
             top: outputs.length === 1 ? "50%" : `${((i + 1) / (outputs.length + 1)) * 100}%`,
-            background: color,
+            background: handle === "true" ? "#22c55e" : handle === "false" ? "#ef4444" : color,
             width: 10,
             height: 10,
           }}
         />
       ))}
+
+      {/* Output handle labels for multi-output nodes */}
+      {outputs.length > 1 && (
+        <div className="absolute right-0 top-0 h-full flex flex-col justify-around pr-0 pointer-events-none">
+          {outputs.map((handle) => (
+            <span key={handle} className="text-[10px] text-gray-400 -mr-4" style={{ marginRight: "-1.5rem" }}>
+              {handle === "true" ? "T" : handle === "false" ? "F" : handle}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

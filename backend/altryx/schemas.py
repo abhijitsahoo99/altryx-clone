@@ -53,12 +53,20 @@ class WorkflowResponse(BaseModel):
 
 # --- Execution ---
 
+class OutputPreview(BaseModel):
+    handle: str
+    row_count: int = 0
+    columns: list[str] = []
+    preview: list[dict[str, Any]] = []  # first 100 rows
+
+
 class NodeResult(BaseModel):
     node_id: str
     status: str  # completed | error
     row_count: int = 0
     columns: list[str] = []
-    preview: list[dict[str, Any]] = []  # first 100 rows
+    preview: list[dict[str, Any]] = []  # first 100 rows (primary output)
+    output_previews: list[OutputPreview] = []  # all outputs for multi-output nodes
     error: str | None = None
 
 
