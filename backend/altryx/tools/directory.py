@@ -27,15 +27,17 @@ class DirectoryTool(BaseTool):
         return self._list_local(config)
 
     def _list_local(self, config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        directory = config.get("directory_path", "")
+        directory = config.get("directory_path", "").strip()
         if not directory:
             raise ValueError("Directory path is required. Enter an absolute path on the server filesystem.")
+        # Expand ~ to home directory
+        directory = os.path.expanduser(directory)
         if not os.path.isdir(directory):
             raise ValueError(
-                f"Directory not found on server: '{directory}'. "
-                f"Make sure this path exists on the machine running the backend. "
-                f"If you're running locally, use the actual server path. "
-                f"Uploaded files are in: {UPLOAD_DIR}"
+                f"Directory not found: '{directory}'. "
+                f"This path must exist on the server running the backend. "
+                f"Available sample data: /home/user/altryx-clone/sample-data. "
+                f"Uploaded files: {UPLOAD_DIR}"
             )
         return self._list_local_dir(directory, config)
 
@@ -65,7 +67,7 @@ class DirectoryTool(BaseTool):
                 "Directory": os.path.dirname(os.path.abspath(f)),
                 "Extension": os.path.splitext(f)[1].lstrip("."),
                 "SizeBytes": stat.st_size,
-                "ModifiedDate": pd.Timestamp.fromtimestamp(stat.st_mtime),
+                "ModifiedDate": pd.Timestamp.fromtimestamp(stat.st_mtime).isoformat(),
             })
 
         if not records:
