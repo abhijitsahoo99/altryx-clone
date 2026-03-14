@@ -1,11 +1,179 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { X, ChevronDown } from "lucide-react";
 import { useWorkflowStore } from "@/hooks/useWorkflow";
 import { getToolInfo } from "@/lib/toolRegistry";
 import { api } from "@/lib/api";
 import type { UploadedFile } from "@/lib/types";
+
+/**
+ * Walk edges backwards from a node to find all upstream columns.
+ * For join/append tools with two inputs, returns columns per handle.
+ */
+function useUpstreamColumns(nodeId: string | null) {
+  const { edges, nodeResults, nodes } = useWorkflowStore();
+
+  return useMemo(() => {
+    if (!nodeId) return { columns: [] as string[], leftColumns: [] as string[], rightColumns: [] as string[] };
+
+    const incomingEdges = edges.filter((e) => e.target === nodeId);
+    const allCols: string[] = [];
+    let leftCols: string[] = [];
+    let rightCols: string[] = [];
+
+    for (const edge of incomingEdges) {
+      const sourceResult = nodeResults[edge.source];
+      const handle = edge.targetHandle || "input";
+
+      if (sourceResult?.columns?.length) {
+        allCols.push(...sourceResult.columns);
+        if (handle === "left" || handle === "target") {
+          leftCols = sourceResult.columns;
+        } else if (handle === "right" || handle === "source") {
+          rightCols = sourceResult.columns;
+        }
+      } else {
+        // Fallback: try to walk further upstream recursively (one level)
+        const parentEdges = edges.filter((e2) => e2.target === edge.source);
+        for (const pe of parentEdges) {
+          const parentResult = nodeResults[pe.source];
+          if (parentResult?.columns?.length) {
+            allCols.push(...parentResult.columns);
+          }
+        }
+      }
+    }
+
+    // Deduplicate
+    const unique = [...new Set(allCols)];
+    return { columns: unique, leftColumns: leftCols, rightColumns: rightCols };
+  }, [nodeId, edges, nodeResults, nodes]);
+}
+
+// Multi-select dropdown for picking columns
+function ColumnMultiSelect({
+  label,
+  available,
+  selected,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  available: string[];
+  selected: string[];
+  onChange: (cols: string[]) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const toggle = (col: string) => {
+    if (selected.includes(col)) {
+      onChange(selected.filter((c) => c !== col));
+    } else {
+      onChange([...selected, col]);
+    }
+  };
+
+  if (available.length === 0) {
+    return (
+      <label className="block">
+        <span className="text-xs font-medium text-gray-600">{label}</span>
+        <input
+          type="text"
+          className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+          placeholder={placeholder || "col1, col2 (run workflow to auto-detect)"}
+          value={selected.join(", ")}
+          onChange={(e) =>
+            onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+          }
+        />
+      </label>
+    );
+  }
+
+  return (
+    <div className="block">
+      <span className="text-xs font-medium text-gray-600">{label}</span>
+      <div className="relative mt-1">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between rounded border border-gray-300 px-2 py-1.5 text-sm text-left bg-white hover:border-gray-400"
+          onClick={() => setOpen(!open)}
+        >
+          <span className={selected.length ? "text-gray-800 truncate" : "text-gray-400"}>
+            {selected.length ? selected.join(", ") : placeholder || "Select columns..."}
+          </span>
+          <ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {open && (
+          <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg">
+            {available.map((col) => (
+              <label
+                key={col}
+                className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-gray-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(col)}
+                  onChange={() => toggle(col)}
+                  className="rounded"
+                />
+                <span className="truncate">{col}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Single column selector dropdown
+function ColumnSelect({
+  label,
+  available,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  available: string[];
+  value: string;
+  onChange: (col: string) => void;
+  placeholder?: string;
+}) {
+  if (available.length === 0) {
+    return (
+      <label className="block">
+        <span className="text-xs font-medium text-gray-600">{label}</span>
+        <input
+          type="text"
+          className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+          placeholder={placeholder || "Column name (run workflow to auto-detect)"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </label>
+    );
+  }
+
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-gray-600">{label}</span>
+      <select
+        className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">{placeholder || "Select column..."}</option>
+        {available.map((col) => (
+          <option key={col} value={col}>{col}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 export function NodeConfigPanel() {
   const { nodes, selectedNodeId, updateNodeConfig, setSelectedNodeId } = useWorkflowStore();
@@ -15,6 +183,8 @@ export function NodeConfigPanel() {
   const toolType = (selectedNode?.data as Record<string, unknown>)?.toolType as string | undefined;
   const config = ((selectedNode?.data as Record<string, unknown>)?.config || {}) as Record<string, unknown>;
   const toolInfo = toolType ? getToolInfo(toolType) : undefined;
+
+  const { columns, leftColumns, rightColumns } = useUpstreamColumns(selectedNodeId);
 
   useEffect(() => {
     if (toolType === "input_data") {
@@ -80,19 +250,28 @@ export function NodeConfigPanel() {
     </label>
   );
 
-  const renderColumnList = (key: string, label: string, placeholder?: string) => (
-    <label key={key} className="block">
-      <span className="text-xs font-medium text-gray-600">{label}</span>
-      <input
-        type="text"
-        className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-        placeholder={placeholder || "col1, col2, col3"}
-        value={Array.isArray(config[key]) ? (config[key] as string[]).join(", ") : ""}
-        onChange={(e) =>
-          updateConfig(key, e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
-        }
-      />
-    </label>
+  // Dynamic column multi-select (falls back to text input if no upstream data)
+  const renderColumnMultiSelect = (key: string, label: string, availableCols?: string[], placeholder?: string) => (
+    <ColumnMultiSelect
+      key={key}
+      label={label}
+      available={availableCols ?? columns}
+      selected={Array.isArray(config[key]) ? (config[key] as string[]) : []}
+      onChange={(cols) => updateConfig(key, cols)}
+      placeholder={placeholder}
+    />
+  );
+
+  // Dynamic single column select (falls back to text input if no upstream data)
+  const renderColumnSelect = (key: string, label: string, availableCols?: string[], placeholder?: string) => (
+    <ColumnSelect
+      key={key}
+      label={label}
+      available={availableCols ?? columns}
+      value={(config[key] as string) || ""}
+      onChange={(col) => updateConfig(key, col)}
+      placeholder={placeholder}
+    />
   );
 
   const renderJsonTextarea = (key: string, label: string, placeholder?: string, rows = 3) => (
@@ -109,6 +288,13 @@ export function NodeConfigPanel() {
       />
     </label>
   );
+
+  // Hint banner when upstream columns are available
+  const columnHint = columns.length > 0 ? (
+    <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-1.5 mb-1">
+      {columns.length} column{columns.length !== 1 ? "s" : ""} detected from upstream
+    </div>
+  ) : null;
 
   return (
     <div className="w-72 border-l border-gray-200 bg-white p-4 overflow-y-auto">
@@ -178,25 +364,33 @@ export function NodeConfigPanel() {
         )}
 
         {/* === Preparation === */}
-        {toolType === "filter" && renderTextInput("expression", "Filter Expression", "e.g. age > 30")}
+        {toolType === "filter" && (
+          <>
+            {columnHint}
+            {renderTextInput("expression", "Filter Expression", columns.length > 0 ? `e.g. ${columns[0]} > 30` : "e.g. age > 30")}
+          </>
+        )}
 
         {toolType === "select" && (
           <>
-            {renderColumnList("columns", "Columns to keep")}
+            {columnHint}
+            {renderColumnMultiSelect("columns", "Columns to keep")}
             {renderJsonTextarea("rename", "Rename map (JSON)", '{"old_name": "new_name"}')}
           </>
         )}
 
         {toolType === "formula" && (
           <>
+            {columnHint}
             {renderTextInput("output_column", "Output Column", "", "new_column")}
-            {renderTextInput("expression", "Expression", "e.g. price * quantity")}
+            {renderTextInput("expression", "Expression", columns.length >= 2 ? `e.g. ${columns[0]} * ${columns[1]}` : "e.g. price * quantity")}
           </>
         )}
 
         {toolType === "sort" && (
           <>
-            {renderColumnList("columns", "Sort by columns")}
+            {columnHint}
+            {renderColumnMultiSelect("columns", "Sort by columns")}
             {renderCheckbox("ascending", "Ascending", true)}
           </>
         )}
@@ -211,15 +405,21 @@ export function NodeConfigPanel() {
 
         {toolType === "unique" && (
           <>
-            {renderColumnList("columns", "Deduplicate on columns", "Leave empty for all")}
+            {columnHint}
+            {renderColumnMultiSelect("columns", "Deduplicate on columns", columns, "Leave empty for all")}
             {renderSelect("keep", "Keep", ["first", "last"], "first")}
           </>
         )}
 
         {toolType === "summarize" && (
           <>
-            {renderColumnList("group_by", "Group by")}
-            {renderJsonTextarea("aggregations", "Aggregations (JSON)", '[{"column":"amount","function":"sum"}]')}
+            {columnHint}
+            {renderColumnMultiSelect("group_by", "Group by")}
+            {renderJsonTextarea("aggregations", "Aggregations (JSON)",
+              columns.length > 0
+                ? `[{"column":"${columns[0]}","function":"sum"}]`
+                : '[{"column":"amount","function":"sum"}]'
+            )}
           </>
         )}
 
@@ -234,37 +434,46 @@ export function NodeConfigPanel() {
 
         {toolType === "multi_row" && (
           <>
-            {renderTextInput("source_column", "Source Column")}
+            {columnHint}
+            {renderColumnSelect("source_column", "Source Column")}
             {renderTextInput("output_column", "Output Column", "", "multi_row_result")}
             {renderNumberInput("row_offset", "Row Offset (-1=prev, 1=next)", -1)}
             {renderSelect("operation", "Operation", ["value", "difference", "percent_change"], "value")}
-            {renderColumnList("group_by", "Group By")}
+            {renderColumnMultiSelect("group_by", "Group By")}
           </>
         )}
 
         {toolType === "imputation" && (
           <>
-            {renderColumnList("columns", "Columns to impute")}
+            {columnHint}
+            {renderColumnMultiSelect("columns", "Columns to impute")}
             {renderSelect("method", "Method", ["mean", "median", "mode", "constant", "forward_fill", "backward_fill", "interpolate"], "mean")}
             {config.method === "constant" && renderTextInput("custom_value", "Custom Value")}
-            {renderColumnList("group_by", "Group By")}
+            {renderColumnMultiSelect("group_by", "Group By")}
           </>
         )}
 
-        {toolType === "transpose" && renderTextInput("header_column", "Use as header (optional)")}
+        {toolType === "transpose" && (
+          <>
+            {columnHint}
+            {renderColumnSelect("header_column", "Use as header (optional)")}
+          </>
+        )}
 
         {toolType === "cross_tab" && (
           <>
-            {renderTextInput("row_field", "Row Field")}
-            {renderTextInput("column_field", "Column Field")}
-            {renderTextInput("value_field", "Value Field (optional)")}
+            {columnHint}
+            {renderColumnSelect("row_field", "Row Field")}
+            {renderColumnSelect("column_field", "Column Field")}
+            {renderColumnSelect("value_field", "Value Field (optional)")}
             {renderSelect("aggregation", "Aggregation", ["count", "sum", "mean", "min", "max"], "count")}
           </>
         )}
 
         {toolType === "find_replace" && (
           <>
-            {renderTextInput("column", "Column")}
+            {columnHint}
+            {renderColumnSelect("column", "Column")}
             {renderJsonTextarea("replacements", "Replacements (JSON)", '[{"find":"old","replace":"new"}]')}
             {renderCheckbox("use_regex", "Use Regex")}
             {renderCheckbox("case_sensitive", "Case Sensitive", true)}
@@ -274,7 +483,8 @@ export function NodeConfigPanel() {
         {/* === Parse === */}
         {toolType === "text_to_columns" && (
           <>
-            {renderTextInput("column", "Column to split")}
+            {columnHint}
+            {renderColumnSelect("column", "Column to split")}
             {renderTextInput("delimiter", "Delimiter", ",", ",")}
             {renderNumberInput("max_splits", "Max splits (0=unlimited)", 0)}
             {renderTextInput("output_prefix", "Output column prefix")}
@@ -284,7 +494,8 @@ export function NodeConfigPanel() {
 
         {toolType === "regex" && (
           <>
-            {renderTextInput("column", "Column")}
+            {columnHint}
+            {renderColumnSelect("column", "Column")}
             {renderTextInput("pattern", "Regex Pattern", String.raw`e.g. (\d+)-(\w+)`)}
             {renderSelect("mode", "Mode", ["extract", "replace", "match", "findall", "count"], "extract")}
             {config.mode === "replace" && renderTextInput("replacement", "Replacement")}
@@ -296,8 +507,13 @@ export function NodeConfigPanel() {
         {toolType === "join" && (
           <>
             {renderSelect("join_type", "Join Type", ["inner", "left", "right", "outer"], "inner")}
-            {renderTextInput("left_key", "Left Key Column")}
-            {renderTextInput("right_key", "Right Key Column")}
+            {leftColumns.length > 0 && (
+              <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+                Left: {leftColumns.length} cols / Right: {rightColumns.length} cols
+              </div>
+            )}
+            {renderColumnSelect("left_key", "Left Key Column", leftColumns)}
+            {renderColumnSelect("right_key", "Right Key Column", rightColumns)}
           </>
         )}
 
@@ -311,8 +527,13 @@ export function NodeConfigPanel() {
 
         {toolType === "fuzzy_match" && (
           <>
-            {renderTextInput("left_key", "Left Match Column")}
-            {renderTextInput("right_key", "Right Match Column")}
+            {leftColumns.length > 0 && (
+              <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+                Left: {leftColumns.length} cols / Right: {rightColumns.length} cols
+              </div>
+            )}
+            {renderColumnSelect("left_key", "Left Match Column", leftColumns)}
+            {renderColumnSelect("right_key", "Right Match Column", rightColumns)}
             {renderNumberInput("threshold", "Match Threshold (0-100)", 80)}
             {renderSelect("algorithm", "Algorithm", ["ratio", "partial_ratio", "token_sort_ratio", "token_set_ratio"], "ratio")}
           </>
