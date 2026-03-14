@@ -7,6 +7,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { useWorkflowStore } from "@/hooks/useWorkflow";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { api } from "@/lib/api";
+import { getToolInfo } from "@/lib/toolRegistry";
 import { WorkflowHeader } from "@/components/workflow/WorkflowHeader";
 import { ToolPalette } from "@/components/toolbar/ToolPalette";
 import { WorkflowCanvas } from "@/components/canvas/WorkflowCanvas";
@@ -17,6 +18,7 @@ export default function WorkflowEditorPage() {
   const params = useParams();
   const workflowId = params.id as string;
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const { setWorkflowId, setWorkflowName, setNodes, setEdges } = useWorkflowStore();
   useKeyboardShortcuts();
@@ -36,13 +38,14 @@ export default function WorkflowEditorPage() {
           data: {
             toolType: n.type,
             config: n.config,
-            label: n.type,
+            label: getToolInfo(n.type)?.label || n.type,
           },
         }));
         setNodes(rfNodes);
         setEdges(wf.definition.edges);
       } catch (err) {
         console.error("Failed to load workflow:", err);
+        setError("Failed to load workflow. Make sure the backend is running.");
       } finally {
         setLoading(false);
       }
@@ -53,6 +56,17 @@ export default function WorkflowEditorPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-400">Loading workflow...</div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <a href="/workflows" className="text-blue-600 hover:underline text-sm">Back to workflows</a>
+        </div>
+      </div>
     );
   }
 

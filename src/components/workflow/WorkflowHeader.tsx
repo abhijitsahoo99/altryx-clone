@@ -1,12 +1,14 @@
 "use client";
 
-import { Play, Save, Loader2, Undo2, Redo2, Copy, Clipboard, Moon, Sun } from "lucide-react";
+import { useState } from "react";
+import { Play, Save, Loader2, Undo2, Redo2, Copy, Clipboard, Moon, Sun, Check, AlertCircle } from "lucide-react";
 import { useWorkflowStore } from "@/hooks/useWorkflow";
 import { useExecution } from "@/hooks/useExecution";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { api } from "@/lib/api";
 
 export function WorkflowHeader() {
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const {
     workflowId,
     workflowName,
@@ -27,24 +29,33 @@ export function WorkflowHeader() {
 
   const handleSave = async () => {
     if (!workflowId) return;
-    await api.updateWorkflow(workflowId, {
-      name: workflowName,
-      definition: {
-        nodes: nodes.map((n) => ({
-          id: n.id,
-          type: n.type || "unknown",
-          position: n.position,
-          config: (n.data as Record<string, unknown>)?.config as Record<string, unknown> || {},
-        })),
-        edges: edges.map((e) => ({
-          id: e.id,
-          source: e.source,
-          target: e.target,
-          sourceHandle: e.sourceHandle || "output",
-          targetHandle: e.targetHandle || "input",
-        })),
-      },
-    });
+    setSaveStatus("saving");
+    try {
+      await api.updateWorkflow(workflowId, {
+        name: workflowName,
+        definition: {
+          nodes: nodes.map((n) => ({
+            id: n.id,
+            type: ((n.data as Record<string, unknown>)?.toolType as string) || "unknown",
+            position: n.position,
+            config: (n.data as Record<string, unknown>)?.config as Record<string, unknown> || {},
+          })),
+          edges: edges.map((e) => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle || "output",
+            targetHandle: e.targetHandle || "input",
+          })),
+        },
+      });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (err) {
+      console.error("Save failed:", err);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
   };
 
   return (
@@ -109,10 +120,21 @@ export function WorkflowHeader() {
         </span>
         <button
           onClick={handleSave}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded"
+          disabled={saveStatus === "saving"}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded ${
+            saveStatus === "saved" ? "text-green-600" :
+            saveStatus === "error" ? "text-red-600" :
+            "text-gray-600 hover:bg-gray-100"
+          }`}
         >
-          <Save size={16} />
-          Save
+          {saveStatus === "saving" ? <Loader2 size={16} className="animate-spin" /> :
+           saveStatus === "saved" ? <Check size={16} /> :
+           saveStatus === "error" ? <AlertCircle size={16} /> :
+           <Save size={16} />}
+          {saveStatus === "saving" ? "Saving..." :
+           saveStatus === "saved" ? "Saved" :
+           saveStatus === "error" ? "Save failed" :
+           "Save"}
         </button>
         <button
           onClick={run}
