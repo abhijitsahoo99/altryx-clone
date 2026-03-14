@@ -392,13 +392,26 @@ export function NodeConfigPanel() {
 
         {toolType === "directory" && (
           <>
-            {renderSelect("source", "Source", ["local", "google_drive"], "local")}
+            {renderSelect("source", "Source", ["local", "uploads", "google_drive"], "local")}
             {(config.source || "local") === "local" && (
               <>
-                {renderTextInput("directory_path", "Directory Path", "/path/to/directory")}
+                {renderTextInput("directory_path", "Directory Path", "/absolute/server/path")}
                 {renderTextInput("file_pattern", "File Pattern", "*.csv", "*")}
                 {renderCheckbox("include_subdirs", "Include subdirectories")}
                 {renderCheckbox("collect_full_path", "Include full path", true)}
+                <div className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1.5">
+                  Path must exist on the server running the backend, not your local machine.
+                </div>
+              </>
+            )}
+            {config.source === "uploads" && (
+              <>
+                {renderTextInput("file_pattern", "File Pattern", "*.csv", "*")}
+                {renderCheckbox("include_subdirs", "Include subdirectories")}
+                {renderCheckbox("collect_full_path", "Include full path", true)}
+                <div className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5">
+                  Scans the server&apos;s upload directory for previously uploaded files.
+                </div>
               </>
             )}
             {config.source === "google_drive" && (

@@ -4,6 +4,7 @@ import os
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.config import UPLOAD_DIR
 
 
 class DirectoryTool(BaseTool):
@@ -21,13 +22,24 @@ class DirectoryTool(BaseTool):
 
         if source == "google_drive":
             return self._list_google_drive(config)
+        elif source == "uploads":
+            return self._list_local_dir(str(UPLOAD_DIR), config)
         return self._list_local(config)
 
     def _list_local(self, config: dict[str, Any]) -> dict[str, pd.DataFrame]:
         directory = config.get("directory_path", "")
-        if not directory or not os.path.isdir(directory):
-            raise ValueError(f"Directory not found: {directory}")
+        if not directory:
+            raise ValueError("Directory path is required. Enter an absolute path on the server filesystem.")
+        if not os.path.isdir(directory):
+            raise ValueError(
+                f"Directory not found on server: '{directory}'. "
+                f"Make sure this path exists on the machine running the backend. "
+                f"If you're running locally, use the actual server path. "
+                f"Uploaded files are in: {UPLOAD_DIR}"
+            )
+        return self._list_local_dir(directory, config)
 
+    def _list_local_dir(self, directory: str, config: dict[str, Any]) -> dict[str, pd.DataFrame]:
         file_pattern = config.get("file_pattern", "*")
         include_subdirs = config.get("include_subdirs", False)
         collect_full_path = config.get("collect_full_path", True)
@@ -56,6 +68,12 @@ class DirectoryTool(BaseTool):
                 "ModifiedDate": pd.Timestamp.fromtimestamp(stat.st_mtime),
             })
 
+        if not records:
+            raise ValueError(
+                f"No files found matching pattern '{file_pattern}' in '{directory}'. "
+                f"Check the path and pattern."
+            )
+
         return {"output": pd.DataFrame(records)}
 
     def _list_google_drive(self, config: dict[str, Any]) -> dict[str, pd.DataFrame]:
@@ -72,7 +90,7 @@ class DirectoryTool(BaseTool):
 
     def get_config_schema(self) -> dict[str, Any]:
         return {
-            "source": {"type": "select", "options": ["local", "google_drive"], "default": "local"},
+            "source": {"type": "select", "options": ["local", "uploads", "google_drive"], "default": "local"},
             "directory_path": {"type": "text", "label": "Directory Path", "placeholder": "/path/to/directory"},
             "file_pattern": {"type": "text", "label": "File Pattern", "default": "*", "placeholder": "*.csv"},
             "include_subdirs": {"type": "checkbox", "label": "Include subdirectories", "default": False},
