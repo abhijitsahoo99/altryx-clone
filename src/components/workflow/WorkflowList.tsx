@@ -9,20 +9,38 @@ import type { Workflow } from "@/lib/types";
 export function WorkflowList() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    api.listWorkflows().then(setWorkflows).catch(console.error).finally(() => setLoading(false));
+    api.listWorkflows()
+      .then(setWorkflows)
+      .catch((err) => {
+        console.error(err);
+        setError("Could not connect to the backend. Make sure the API server is running.");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const handleCreate = async () => {
-    const wf = await api.createWorkflow({ name: "Untitled Workflow" });
-    router.push(`/workflows/${wf.id}`);
+    try {
+      setError(null);
+      const wf = await api.createWorkflow({ name: "Untitled Workflow" });
+      router.push(`/workflows/${wf.id}`);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to create workflow. Is the backend running?");
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await api.deleteWorkflow(id);
-    setWorkflows((prev) => prev.filter((w) => w.id !== id));
+    try {
+      await api.deleteWorkflow(id);
+      setWorkflows((prev) => prev.filter((w) => w.id !== id));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to delete workflow.");
+    }
   };
 
   if (loading) {
@@ -44,7 +62,13 @@ export function WorkflowList() {
         </button>
       </div>
 
-      {workflows.length === 0 ? (
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {workflows.length === 0 && !error ? (
         <div className="text-center py-16 text-gray-400">
           <FileText size={48} className="mx-auto mb-4 opacity-50" />
           <p>No workflows yet. Create one to get started.</p>

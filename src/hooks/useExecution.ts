@@ -19,7 +19,7 @@ export function useExecution() {
       const definition: WorkflowDefinition = {
         nodes: nodes.map((n) => ({
           id: n.id,
-          type: n.type || "unknown",
+          type: ((n.data as Record<string, unknown>)?.toolType as string) || "unknown",
           position: n.position,
           config: (n.data as Record<string, unknown>)?.config as Record<string, unknown> || {},
         })),

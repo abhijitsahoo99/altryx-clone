@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -46,7 +46,7 @@ export const api = {
   uploadFile: async (file: File): Promise<import("./types").UploadedFile> => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${API_BASE}/api/files/upload`, {
+    const res = await fetch(`/api/files/upload`, {
       method: "POST",
       body: formData,
     });
