@@ -5,7 +5,7 @@ import pandas as pd
 
 from altryx.engine.context import ExecutionContext
 from altryx.engine.registry import get_tool
-from altryx.schemas import NodeResult, WorkflowDefinition
+from altryx.schemas import NodeResult, OutputPreview, WorkflowDefinition
 
 
 def _topological_sort(nodes: list[dict], edges: list[dict]) -> list[str]:
@@ -78,9 +78,19 @@ def run_workflow(definition: WorkflowDefinition) -> list[NodeResult]:
             for handle, df in outputs.items():
                 ctx.set_output(node_id, handle, df)
 
-            # Build preview from first output
+            # Build preview from first output (backward compatible)
             first_df = next(iter(outputs.values())) if outputs else pd.DataFrame()
             preview_rows = first_df.head(100).fillna("").to_dict(orient="records")
+
+            # Build per-output previews for multi-output nodes
+            output_previews = []
+            for handle_name, out_df in outputs.items():
+                output_previews.append(OutputPreview(
+                    handle=handle_name,
+                    row_count=len(out_df),
+                    columns=list(out_df.columns),
+                    preview=out_df.head(100).fillna("").to_dict(orient="records"),
+                ))
 
             results.append(NodeResult(
                 node_id=node_id,
@@ -88,6 +98,7 @@ def run_workflow(definition: WorkflowDefinition) -> list[NodeResult]:
                 row_count=len(first_df),
                 columns=list(first_df.columns),
                 preview=preview_rows,
+                output_previews=output_previews,
             ))
 
         except Exception as e:

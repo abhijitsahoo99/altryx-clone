@@ -309,7 +309,7 @@ export function NodeConfigPanel() {
         {/* === IO === */}
         {toolType === "input_data" && (
           <>
-            {renderSelect("source_type", "Source Type", ["file", "sql"], "file")}
+            {renderSelect("source_type", "Source Type", ["file", "directory", "sql"], "file")}
 
             {(config.source_type || "file") === "file" && (
               <>
@@ -334,7 +334,21 @@ export function NodeConfigPanel() {
                     ))}
                   </select>
                 </label>
-                {renderTextInput("delimiter", "Delimiter", ",", ",")}
+                {renderSelect("file_format", "File Format", ["csv", "xlsx", "json", "parquet"], "csv")}
+                {(config.file_format || "csv") === "csv" && renderTextInput("delimiter", "Delimiter", ",", ",")}
+                {(config.file_format === "xlsx" || config.file_format === "xls") && renderTextInput("sheet_name", "Sheet Name", "Sheet1", "Sheet1")}
+                {renderCheckbox("auto_parse_dates", "Auto-detect date columns")}
+                {renderJsonTextarea("type_overrides", "Type overrides (JSON)", '{"Amount": "float64"}')}
+              </>
+            )}
+
+            {config.source_type === "directory" && (
+              <>
+                {renderTextInput("directory_path", "Directory Path", "/path/to/files")}
+                {renderTextInput("file_pattern", "File Pattern", "*.csv", "*.*")}
+                {renderSelect("directory_reader", "File Reader", ["csv", "excel", "parquet"], "csv")}
+                {renderCheckbox("include_subdirs", "Include subdirectories")}
+                {renderCheckbox("add_filename_column", "Add FileName column", true)}
               </>
             )}
 
@@ -366,77 +380,100 @@ export function NodeConfigPanel() {
 
         {/* === Preparation === */}
         {toolType === "filter" && (() => {
-          const operators = ["==", "!=", ">", ">=", "<", "<=", "contains", "not contains", "startswith", "endswith", "isnull", "notnull"];
+          const filterMode = (config.mode as string) || "expression";
+          const operators = ["==", "!=", ">", ">=", "<", "<=", "contains", "not_contains", "in", "not_in", "is_null", "is_not_null"];
+          const operatorLabels: Record<string, string> = {
+            "==": "equals", "!=": "not equals", ">": "greater than", ">=": "greater or equal",
+            "<": "less than", "<=": "less or equal", "contains": "contains", "not_contains": "not contains",
+            "in": "in list", "not_in": "not in list", "is_null": "is null", "is_not_null": "is not null",
+          };
+          const conditions = Array.isArray(config.conditions) ? (config.conditions as Array<Record<string, string>>) : [];
+          const noValueOps = ["is_null", "is_not_null"];
+
           const buildExpr = (col: string, op: string, val: string) => {
             if (!col) return "";
-            if (op === "isnull") return `${col}.isnull()`;
-            if (op === "notnull") return `${col}.notnull()`;
+            if (op === "is_null") return `${col}.isnull()`;
+            if (op === "is_not_null") return `${col}.notnull()`;
             if (!val) return "";
             const isNum = !isNaN(Number(val)) && val.trim() !== "";
             if (op === "contains") return `${col}.str.contains("${val}")`;
-            if (op === "not contains") return `~${col}.str.contains("${val}")`;
-            if (op === "startswith") return `${col}.str.startswith("${val}")`;
-            if (op === "endswith") return `${col}.str.endswith("${val}")`;
+            if (op === "not_contains") return `~${col}.str.contains("${val}")`;
             return isNum ? `${col} ${op} ${val}` : `${col} ${op} "${val}"`;
           };
-          const curCol = (config.filter_column as string) || "";
-          const curOp = (config.filter_operator as string) || "==";
-          const curVal = (config.filter_value as string) || "";
-          const needsValue = !["isnull", "notnull"].includes(curOp);
+
+          const updateCondition = (idx: number, key: string, val: string) => {
+            const updated = [...conditions];
+            updated[idx] = { ...updated[idx], [key]: val };
+            updateConfig("conditions", updated);
+          };
+          const addCondition = () => {
+            updateConfig("conditions", [...conditions, { column: "", operator: "==", value: "" }]);
+          };
+          const removeCondition = (idx: number) => {
+            updateConfig("conditions", conditions.filter((_, i) => i !== idx));
+          };
 
           return (
             <>
               {columnHint}
-              {columns.length > 0 ? (
+              {renderSelect("mode", "Filter Mode", ["expression", "conditions"], "expression")}
+
+              {filterMode === "expression" && (
                 <>
-                  <label className="block">
-                    <span className="text-xs font-medium text-gray-600">Column</span>
-                    <select
-                      className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                      value={curCol}
-                      onChange={(e) => {
-                        updateConfig("filter_column", e.target.value);
-                        const expr = buildExpr(e.target.value, curOp, curVal);
-                        if (expr) updateConfig("expression", expr);
-                      }}
-                    >
-                      <option value="">Select column...</option>
-                      {columns.map((col) => (
-                        <option key={col} value={col}>{col}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-medium text-gray-600">Operator</span>
-                    <select
-                      className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                      value={curOp}
-                      onChange={(e) => {
-                        updateConfig("filter_operator", e.target.value);
-                        const expr = buildExpr(curCol, e.target.value, curVal);
-                        if (expr) updateConfig("expression", expr);
-                      }}
-                    >
-                      {operators.map((op) => (
-                        <option key={op} value={op}>{op}</option>
-                      ))}
-                    </select>
-                  </label>
-                  {needsValue && (
-                    <label className="block">
-                      <span className="text-xs font-medium text-gray-600">Value</span>
-                      <input
-                        type="text"
-                        className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                        placeholder="e.g. 30 or NYC"
-                        value={curVal}
-                        onChange={(e) => {
-                          updateConfig("filter_value", e.target.value);
-                          const expr = buildExpr(curCol, curOp, e.target.value);
-                          if (expr) updateConfig("expression", expr);
-                        }}
-                      />
-                    </label>
+                  {columns.length > 0 ? (
+                    <>
+                      <label className="block">
+                        <span className="text-xs font-medium text-gray-600">Column</span>
+                        <select
+                          className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                          value={(config.filter_column as string) || ""}
+                          onChange={(e) => {
+                            updateConfig("filter_column", e.target.value);
+                            const expr = buildExpr(e.target.value, (config.filter_operator as string) || "==", (config.filter_value as string) || "");
+                            if (expr) updateConfig("expression", expr);
+                          }}
+                        >
+                          <option value="">Select column...</option>
+                          {columns.map((col) => (
+                            <option key={col} value={col}>{col}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-medium text-gray-600">Operator</span>
+                        <select
+                          className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                          value={(config.filter_operator as string) || "=="}
+                          onChange={(e) => {
+                            updateConfig("filter_operator", e.target.value);
+                            const expr = buildExpr((config.filter_column as string) || "", e.target.value, (config.filter_value as string) || "");
+                            if (expr) updateConfig("expression", expr);
+                          }}
+                        >
+                          {operators.map((op) => (
+                            <option key={op} value={op}>{operatorLabels[op] || op}</option>
+                          ))}
+                        </select>
+                      </label>
+                      {!noValueOps.includes((config.filter_operator as string) || "==") && (
+                        <label className="block">
+                          <span className="text-xs font-medium text-gray-600">Value</span>
+                          <input
+                            type="text"
+                            className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                            placeholder="e.g. 30 or NYC"
+                            value={(config.filter_value as string) || ""}
+                            onChange={(e) => {
+                              updateConfig("filter_value", e.target.value);
+                              const expr = buildExpr((config.filter_column as string) || "", (config.filter_operator as string) || "==", e.target.value);
+                              if (expr) updateConfig("expression", expr);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </>
+                  ) : (
+                    renderTextInput("expression", "Filter Expression", "e.g. age > 30")
                   )}
                   {(config.expression as string) && (
                     <div className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5 font-mono break-all">
@@ -444,9 +481,78 @@ export function NodeConfigPanel() {
                     </div>
                   )}
                 </>
-              ) : (
-                renderTextInput("expression", "Filter Expression", "e.g. age > 30")
               )}
+
+              {filterMode === "conditions" && (
+                <>
+                  {renderSelect("logic", "Combine with", ["and", "or"], "and")}
+                  <div className="space-y-2">
+                    {conditions.map((cond, idx) => (
+                      <div key={idx} className="border border-gray-200 rounded p-2 space-y-1.5 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500">Condition {idx + 1}</span>
+                          <button
+                            type="button"
+                            className="text-xs text-red-500 hover:text-red-700"
+                            onClick={() => removeCondition(idx)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        {columns.length > 0 ? (
+                          <select
+                            className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            value={cond.column || ""}
+                            onChange={(e) => updateCondition(idx, "column", e.target.value)}
+                          >
+                            <option value="">Column...</option>
+                            {columns.map((col) => (
+                              <option key={col} value={col}>{col}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            placeholder="Column name"
+                            value={cond.column || ""}
+                            onChange={(e) => updateCondition(idx, "column", e.target.value)}
+                          />
+                        )}
+                        <select
+                          className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                          value={cond.operator || "=="}
+                          onChange={(e) => updateCondition(idx, "operator", e.target.value)}
+                        >
+                          {operators.map((op) => (
+                            <option key={op} value={op}>{operatorLabels[op] || op}</option>
+                          ))}
+                        </select>
+                        {!noValueOps.includes(cond.operator || "==") && (
+                          <input
+                            type="text"
+                            className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            placeholder="Value"
+                            value={cond.value || ""}
+                            onChange={(e) => updateCondition(idx, "value", e.target.value)}
+                          />
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="w-full py-1.5 text-xs text-blue-600 border border-dashed border-blue-300 rounded hover:bg-blue-50"
+                      onClick={addCondition}
+                    >
+                      + Add Condition
+                    </button>
+                  </div>
+                </>
+              )}
+
+              <div className="text-xs text-green-600 bg-green-50 border border-green-100 rounded px-2 py-1.5">
+                T (True) output = matching rows, F (False) output = non-matching rows
+              </div>
             </>
           );
         })()}
@@ -455,17 +561,130 @@ export function NodeConfigPanel() {
           <>
             {columnHint}
             {renderColumnMultiSelect("columns", "Columns to keep")}
+            {renderColumnMultiSelect("drop", "Columns to drop")}
+            {renderColumnMultiSelect("reorder", "Column order (leading)")}
             {renderJsonTextarea("rename", "Rename map (JSON)", '{"old_name": "new_name"}')}
+            {renderJsonTextarea("type_map", "Type conversions (JSON)", '{"Amount": "float64", "ID": "int64"}')}
           </>
         )}
 
-        {toolType === "formula" && (
-          <>
-            {columnHint}
-            {renderTextInput("output_column", "Output Column", "", "new_column")}
-            {renderTextInput("expression", "Expression", columns.length >= 2 ? `e.g. ${columns[0]} * ${columns[1]}` : "e.g. price * quantity")}
-          </>
-        )}
+        {toolType === "formula" && (() => {
+          const formulaMode = (config.mode as string) || "eval";
+          const rules = Array.isArray(config.rules) ? (config.rules as Array<Record<string, string>>) : [];
+          const condOps = ["==", "!=", ">", ">=", "<", "<=", "contains", "is_null", "is_not_null"];
+
+          const updateRule = (idx: number, key: string, val: string) => {
+            const updated = [...rules];
+            updated[idx] = { ...updated[idx], [key]: val };
+            updateConfig("rules", updated);
+          };
+          const addRule = () => {
+            updateConfig("rules", [...rules, { column: "", operator: "==", value: "", then: "" }]);
+          };
+          const removeRule = (idx: number) => {
+            updateConfig("rules", rules.filter((_, i) => i !== idx));
+          };
+
+          return (
+            <>
+              {columnHint}
+              {renderSelect("mode", "Formula Mode", ["eval", "concat", "conditional", "constant"], "eval")}
+              {renderTextInput("output_column", "Output Column", "", "new_column")}
+
+              {formulaMode === "eval" && (
+                renderTextInput("expression", "Expression", columns.length >= 2 ? `e.g. ${columns[0]} * ${columns[1]}` : "e.g. price * quantity")
+              )}
+
+              {formulaMode === "concat" && (
+                <>
+                  {renderColumnMultiSelect("concat_columns", "Columns to concatenate")}
+                  {renderTextInput("separator", "Separator", "e.g. - or _", "")}
+                </>
+              )}
+
+              {formulaMode === "conditional" && (
+                <>
+                  <div className="space-y-2">
+                    {rules.map((rule, idx) => (
+                      <div key={idx} className="border border-gray-200 rounded p-2 space-y-1.5 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500">IF</span>
+                          <button
+                            type="button"
+                            className="text-xs text-red-500 hover:text-red-700"
+                            onClick={() => removeRule(idx)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        {columns.length > 0 ? (
+                          <select
+                            className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            value={rule.column || ""}
+                            onChange={(e) => updateRule(idx, "column", e.target.value)}
+                          >
+                            <option value="">Column...</option>
+                            {columns.map((col) => (
+                              <option key={col} value={col}>{col}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            placeholder="Column"
+                            value={rule.column || ""}
+                            onChange={(e) => updateRule(idx, "column", e.target.value)}
+                          />
+                        )}
+                        <select
+                          className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                          value={rule.operator || "=="}
+                          onChange={(e) => updateRule(idx, "operator", e.target.value)}
+                        >
+                          {condOps.map((op) => (
+                            <option key={op} value={op}>{op}</option>
+                          ))}
+                        </select>
+                        {!["is_null", "is_not_null"].includes(rule.operator || "==") && (
+                          <input
+                            type="text"
+                            className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            placeholder="Value"
+                            value={rule.value || ""}
+                            onChange={(e) => updateRule(idx, "value", e.target.value)}
+                          />
+                        )}
+                        <label className="block">
+                          <span className="text-xs text-gray-500">THEN</span>
+                          <input
+                            type="text"
+                            className="block w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                            placeholder="Result value"
+                            value={rule.then || ""}
+                            onChange={(e) => updateRule(idx, "then", e.target.value)}
+                          />
+                        </label>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="w-full py-1.5 text-xs text-blue-600 border border-dashed border-blue-300 rounded hover:bg-blue-50"
+                      onClick={addRule}
+                    >
+                      + Add IF/THEN Rule
+                    </button>
+                  </div>
+                  {renderTextInput("default_value", "ELSE (default value)", "Default if no rule matches")}
+                </>
+              )}
+
+              {formulaMode === "constant" && (
+                renderTextInput("constant_value", "Constant Value", "e.g. 0 or N/A")
+              )}
+            </>
+          );
+        })()}
 
         {toolType === "sort" && (
           <>
@@ -560,6 +779,33 @@ export function NodeConfigPanel() {
           </>
         )}
 
+        {toolType === "record_id" && (
+          <>
+            {renderTextInput("column_name", "Column Name", "", "RecordID")}
+            {renderNumberInput("start", "Start Value", 1)}
+          </>
+        )}
+
+        {toolType === "running_total" && (
+          <>
+            {columnHint}
+            {renderColumnMultiSelect("columns", "Columns to accumulate")}
+            {renderColumnMultiSelect("group_by", "Group By (optional)")}
+            {renderTextInput("output_prefix", "Output Prefix", "", "Running_")}
+          </>
+        )}
+
+        {toolType === "rank" && (
+          <>
+            {columnHint}
+            {renderColumnSelect("by", "Rank By Column")}
+            {renderTextInput("rank_column", "Output Column Name", "", "Rank")}
+            {renderSelect("method", "Rank Method", ["ordinal", "min", "max", "dense", "average"], "ordinal")}
+            {renderCheckbox("ascending", "Ascending", true)}
+            {renderColumnMultiSelect("group_by", "Group By (optional)")}
+          </>
+        )}
+
         {/* === Parse === */}
         {toolType === "text_to_columns" && (
           <>
@@ -569,6 +815,57 @@ export function NodeConfigPanel() {
             {renderNumberInput("max_splits", "Max splits (0=unlimited)", 0)}
             {renderTextInput("output_prefix", "Output column prefix")}
             {renderCheckbox("keep_original", "Keep original column", true)}
+          </>
+        )}
+
+        {toolType === "datetime" && (() => {
+          const dtMode = (config.mode as string) || "parse";
+          const extractParts = Array.isArray(config.extract_parts) ? (config.extract_parts as string[]) : [];
+          const allParts = ["year", "month", "day", "hour", "minute", "second", "day_of_week", "day_name", "month_name", "quarter", "week"];
+
+          const togglePart = (part: string) => {
+            if (extractParts.includes(part)) {
+              updateConfig("extract_parts", extractParts.filter((p) => p !== part));
+            } else {
+              updateConfig("extract_parts", [...extractParts, part]);
+            }
+          };
+
+          return (
+            <>
+              {columnHint}
+              {renderColumnSelect("column", "Date Column")}
+              {renderSelect("mode", "Mode", ["parse", "format", "extract"], "parse")}
+              {dtMode !== "extract" && renderTextInput("format", "Date Format", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d")}
+              {renderTextInput("output_column", "Output Column (optional)")}
+              {dtMode === "extract" && (
+                <div className="block">
+                  <span className="text-xs font-medium text-gray-600">Parts to extract</span>
+                  <div className="mt-1 grid grid-cols-2 gap-1">
+                    {allParts.map((part) => (
+                      <label key={part} className="flex items-center gap-1.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={extractParts.includes(part)}
+                          onChange={() => togglePart(part)}
+                          className="rounded"
+                        />
+                        {part}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
+
+        {toolType === "generate_rows" && (
+          <>
+            {renderTextInput("column_name", "Column Name", "", "RowNum")}
+            {renderNumberInput("start", "Start", 1)}
+            {renderNumberInput("end", "End", 100)}
+            {renderNumberInput("step", "Step", 1)}
           </>
         )}
 
