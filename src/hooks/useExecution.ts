@@ -6,10 +6,20 @@ import { useWorkflowStore } from "./useWorkflow";
 import type { NodeResult, WorkflowDefinition } from "@/lib/types";
 
 export function useExecution() {
-  const { workflowId, nodes, edges, setNodeResults, setIsExecuting } = useWorkflowStore();
-
   const run = useCallback(async () => {
-    if (!workflowId) return;
+    // Read fresh state from the store at execution time
+    const { workflowId, nodes, edges, setNodeResults, setIsExecuting } =
+      useWorkflowStore.getState();
+
+    if (!workflowId) {
+      console.warn("Cannot run: no workflow ID (save the workflow first)");
+      return;
+    }
+
+    if (nodes.length === 0) {
+      console.warn("Cannot run: no nodes on canvas");
+      return;
+    }
 
     setIsExecuting(true);
     setNodeResults({});
@@ -46,9 +56,9 @@ export function useExecution() {
     } catch (err) {
       console.error("Execution failed:", err);
     } finally {
-      setIsExecuting(false);
+      useWorkflowStore.getState().setIsExecuting(false);
     }
-  }, [workflowId, nodes, edges, setNodeResults, setIsExecuting]);
+  }, []);
 
   return { run };
 }
