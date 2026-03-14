@@ -4,6 +4,7 @@ import pandas as pd
 
 from altryx.config import DATA_DIR
 from altryx.tools.base import BaseTool
+from altryx.utils import write_csv, write_excel
 
 
 class OutputDataTool(BaseTool):
@@ -19,15 +20,15 @@ class OutputDataTool(BaseTool):
         filename = config.get("filename", "output")
 
         output_dir = DATA_DIR / "outputs"
-        output_dir.mkdir(exist_ok=True)
 
         if output_format == "csv":
             path = output_dir / f"{filename}.csv"
-            df.to_csv(path, index=False)
+            write_csv(df, str(path))
         elif output_format == "xlsx":
             path = output_dir / f"{filename}.xlsx"
-            df.to_excel(path, index=False)
+            write_excel(df, str(path))
         elif output_format == "json":
+            output_dir.mkdir(exist_ok=True)
             path = output_dir / f"{filename}.json"
             df.to_json(path, orient="records", indent=2)
 

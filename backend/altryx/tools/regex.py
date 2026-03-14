@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import regex_extract, regex_replace, regex_match, regex_findall, regex_count
 
 
 class RegexTool(BaseTool):
@@ -13,7 +14,7 @@ class RegexTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         column = config.get("column", "")
         pattern = config.get("pattern", "")
         mode = config.get("mode", "extract")
@@ -25,32 +26,20 @@ class RegexTool(BaseTool):
         if not pattern:
             raise ValueError("Pattern is required")
 
-        series = df[column].astype(str)
-
         if mode == "extract":
-            extracted = series.str.extract(pattern, expand=True)
-            if extracted.shape[1] == 1:
-                df[output_column] = extracted.iloc[:, 0]
-            else:
-                for i, col in enumerate(extracted.columns):
-                    col_name = col if isinstance(col, str) and col else f"{output_column}_{i+1}"
-                    df[col_name] = extracted[col]
-
+            result = regex_extract(df, column, pattern, output_columns=[output_column])
         elif mode == "replace":
-            df[output_column] = series.str.replace(pattern, replacement, regex=True)
-
+            result = regex_replace(df, column, pattern, replacement, output_column=output_column)
         elif mode == "match":
-            df[output_column] = series.str.contains(pattern, regex=True, na=False)
-
+            result = regex_match(df, column, pattern, output_column=output_column)
         elif mode == "findall":
-            df[output_column] = series.str.findall(pattern).apply(
-                lambda x: ", ".join(x) if isinstance(x, list) else ""
-            )
-
+            result = regex_findall(df, column, pattern, output_column=output_column)
         elif mode == "count":
-            df[output_column] = series.str.count(pattern)
+            result = regex_count(df, column, pattern, output_column=output_column)
+        else:
+            result = df.copy()
 
-        return {"output": df}
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

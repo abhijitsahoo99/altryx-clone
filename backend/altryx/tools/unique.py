@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import unique_rows
 
 
 class UniqueTool(BaseTool):
@@ -13,16 +14,12 @@ class UniqueTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
-        columns = config.get("columns", [])
+        df = inputs["input"]
+        columns = config.get("columns", []) or None
         keep = config.get("keep", "first")
 
-        if columns:
-            result = df.drop_duplicates(subset=columns, keep=keep)
-        else:
-            result = df.drop_duplicates(keep=keep)
-
-        return {"output": result.reset_index(drop=True)}
+        result = unique_rows(df, subset=columns, keep=keep)
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import join_dataframes
 
 
 class JoinTool(BaseTool):
@@ -22,14 +23,13 @@ class JoinTool(BaseTool):
         if not left_key or not right_key:
             raise ValueError("Join keys must be specified")
 
-        result = left.merge(
-            right,
+        result = join_dataframes(
+            left, right,
             left_on=left_key,
             right_on=right_key,
             how=join_type,
             suffixes=("_left", "_right"),
         )
-
         return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:

@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import sort_rows
 
 
 class SortTool(BaseTool):
@@ -13,19 +14,15 @@ class SortTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         sort_columns = config.get("columns", [])
         ascending = config.get("ascending", True)
 
         if not sort_columns:
-            return {"output": df}
+            return {"output": df.copy()}
 
-        if isinstance(ascending, list):
-            df = df.sort_values(by=sort_columns, ascending=ascending)
-        else:
-            df = df.sort_values(by=sort_columns, ascending=ascending)
-
-        return {"output": df.reset_index(drop=True)}
+        result = sort_rows(df, by=sort_columns, ascending=ascending)
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

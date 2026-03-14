@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import multi_row_shift
 
 
 class MultiRowTool(BaseTool):
@@ -13,36 +14,22 @@ class MultiRowTool(BaseTool):
     outputs = ["output"]
 
     def execute(self, inputs: dict[str, pd.DataFrame], config: dict[str, Any]) -> dict[str, pd.DataFrame]:
-        df = inputs["input"].copy()
+        df = inputs["input"]
         output_column = config.get("output_column", "multi_row_result")
         source_column = config.get("source_column", "")
-        row_offset = config.get("row_offset", -1)  # negative = previous rows (lag), positive = next rows (lead)
-        group_by = config.get("group_by", [])
-        operation = config.get("operation", "value")  # value, difference, percent_change
+        row_offset = config.get("row_offset", -1)
+        group_by = config.get("group_by", []) or None
+        operation = config.get("operation", "value")
 
-        if not source_column or source_column not in df.columns:
-            raise ValueError(f"Source column '{source_column}' not found")
-
-        if group_by:
-            grouped = df.groupby(group_by)[source_column]
-        else:
-            grouped = df[source_column]
-
-        if operation == "value":
-            if group_by:
-                df[output_column] = grouped.shift(-row_offset)
-            else:
-                df[output_column] = grouped.shift(-row_offset)
-        elif operation == "difference":
-            shifted = grouped.shift(-row_offset) if not group_by else grouped.shift(-row_offset)
-            df[output_column] = df[source_column] - shifted
-        elif operation == "percent_change":
-            if group_by:
-                df[output_column] = grouped.pct_change(periods=-row_offset)
-            else:
-                df[output_column] = grouped.pct_change(periods=-row_offset)
-
-        return {"output": df}
+        result = multi_row_shift(
+            df,
+            source_column=source_column,
+            output_column=output_column,
+            row_offset=row_offset,
+            operation=operation,
+            group_by=group_by,
+        )
+        return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
         return {

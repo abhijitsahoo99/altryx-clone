@@ -3,6 +3,7 @@ from typing import Any
 import pandas as pd
 
 from altryx.tools.base import BaseTool
+from altryx.utils import union_dataframes
 
 
 class UnionTool(BaseTool):
@@ -18,12 +19,9 @@ class UnionTool(BaseTool):
             return {"output": pd.DataFrame()}
 
         mode = config.get("mode", "by_name")
+        by_name = mode == "by_name"
 
-        if mode == "by_name":
-            result = pd.concat(dfs, ignore_index=True, sort=False)
-        else:  # by_position
-            result = pd.concat(dfs, ignore_index=True, axis=0)
-
+        result = union_dataframes(*dfs, by_name=by_name)
         return {"output": result}
 
     def get_config_schema(self) -> dict[str, Any]:
