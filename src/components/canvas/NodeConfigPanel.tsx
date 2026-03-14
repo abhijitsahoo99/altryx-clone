@@ -778,6 +778,33 @@ export function NodeConfigPanel() {
           </>
         )}
 
+        {toolType === "record_id" && (
+          <>
+            {renderTextInput("column_name", "Column Name", "", "RecordID")}
+            {renderNumberInput("start", "Start Value", 1)}
+          </>
+        )}
+
+        {toolType === "running_total" && (
+          <>
+            {columnHint}
+            {renderColumnMultiSelect("columns", "Columns to accumulate")}
+            {renderColumnMultiSelect("group_by", "Group By (optional)")}
+            {renderTextInput("output_prefix", "Output Prefix", "", "Running_")}
+          </>
+        )}
+
+        {toolType === "rank" && (
+          <>
+            {columnHint}
+            {renderColumnSelect("by", "Rank By Column")}
+            {renderTextInput("rank_column", "Output Column Name", "", "Rank")}
+            {renderSelect("method", "Rank Method", ["ordinal", "min", "max", "dense", "average"], "ordinal")}
+            {renderCheckbox("ascending", "Ascending", true)}
+            {renderColumnMultiSelect("group_by", "Group By (optional)")}
+          </>
+        )}
+
         {/* === Parse === */}
         {toolType === "text_to_columns" && (
           <>
@@ -787,6 +814,57 @@ export function NodeConfigPanel() {
             {renderNumberInput("max_splits", "Max splits (0=unlimited)", 0)}
             {renderTextInput("output_prefix", "Output column prefix")}
             {renderCheckbox("keep_original", "Keep original column", true)}
+          </>
+        )}
+
+        {toolType === "datetime" && (() => {
+          const dtMode = (config.mode as string) || "parse";
+          const extractParts = Array.isArray(config.extract_parts) ? (config.extract_parts as string[]) : [];
+          const allParts = ["year", "month", "day", "hour", "minute", "second", "day_of_week", "day_name", "month_name", "quarter", "week"];
+
+          const togglePart = (part: string) => {
+            if (extractParts.includes(part)) {
+              updateConfig("extract_parts", extractParts.filter((p) => p !== part));
+            } else {
+              updateConfig("extract_parts", [...extractParts, part]);
+            }
+          };
+
+          return (
+            <>
+              {columnHint}
+              {renderColumnSelect("column", "Date Column")}
+              {renderSelect("mode", "Mode", ["parse", "format", "extract"], "parse")}
+              {dtMode !== "extract" && renderTextInput("format", "Date Format", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d")}
+              {renderTextInput("output_column", "Output Column (optional)")}
+              {dtMode === "extract" && (
+                <div className="block">
+                  <span className="text-xs font-medium text-gray-600">Parts to extract</span>
+                  <div className="mt-1 grid grid-cols-2 gap-1">
+                    {allParts.map((part) => (
+                      <label key={part} className="flex items-center gap-1.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={extractParts.includes(part)}
+                          onChange={() => togglePart(part)}
+                          className="rounded"
+                        />
+                        {part}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
+
+        {toolType === "generate_rows" && (
+          <>
+            {renderTextInput("column_name", "Column Name", "", "RowNum")}
+            {renderNumberInput("start", "Start", 1)}
+            {renderNumberInput("end", "End", 100)}
+            {renderNumberInput("step", "Step", 1)}
           </>
         )}
 

@@ -21,6 +21,11 @@ import {
   Replace,
   PanelRightOpen,
   Search,
+  Hash,
+  Calendar,
+  ListOrdered,
+  TrendingUp,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -45,6 +50,7 @@ export const TOOLS: ToolInfo[] = [
   // IO
   { type: "input_data", label: "Input Data", category: "IO", icon: FileInput, color: "#3b82f6", inputs: [], outputs: ["output"] },
   { type: "output_data", label: "Output Data", category: "IO", icon: FileOutput, color: "#3b82f6", inputs: ["input"], outputs: ["output"] },
+  { type: "generate_rows", label: "Generate Rows", category: "IO", icon: ListOrdered, color: "#3b82f6", inputs: [], outputs: ["output"] },
 
   // Preparation
   { type: "filter", label: "Filter", category: "Preparation", icon: Filter, color: "#8b5cf6", inputs: ["input"], outputs: ["true", "false"] },
@@ -60,10 +66,14 @@ export const TOOLS: ToolInfo[] = [
   { type: "transpose", label: "Transpose", category: "Preparation", icon: FlipVertical, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
   { type: "cross_tab", label: "Cross Tab", category: "Preparation", icon: Table2, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
   { type: "find_replace", label: "Find Replace", category: "Preparation", icon: Replace, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
+  { type: "record_id", label: "Record ID", category: "Preparation", icon: Hash, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
+  { type: "running_total", label: "Running Total", category: "Preparation", icon: TrendingUp, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
+  { type: "rank", label: "Rank", category: "Preparation", icon: Trophy, color: "#8b5cf6", inputs: ["input"], outputs: ["output"] },
 
   // Parse
   { type: "text_to_columns", label: "Text to Columns", category: "Parse", icon: SplitSquareHorizontal, color: "#06b6d4", inputs: ["input"], outputs: ["output"] },
   { type: "regex", label: "Regex", category: "Parse", icon: Regex, color: "#06b6d4", inputs: ["input"], outputs: ["output"] },
+  { type: "datetime", label: "DateTime", category: "Parse", icon: Calendar, color: "#06b6d4", inputs: ["input"], outputs: ["output"] },
 
   // Join
   { type: "join", label: "Join", category: "Join", icon: GitMerge, color: "#f59e0b", inputs: ["left", "right"], outputs: ["output"] },

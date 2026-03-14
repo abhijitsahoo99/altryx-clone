@@ -19,6 +19,11 @@ from altryx.tools.cross_tab import CrossTabTool
 from altryx.tools.find_replace import FindReplaceTool
 from altryx.tools.append import AppendTool
 from altryx.tools.fuzzy_match import FuzzyMatchTool
+from altryx.tools.record_id import RecordIDTool
+from altryx.tools.datetime_tool import DateTimeTool
+from altryx.tools.generate_rows import GenerateRowsTool
+from altryx.tools.running_total import RunningTotalTool
+from altryx.tools.rank import RankTool
 from altryx.engine.registry import register_tool
 
 _all_tools = [
@@ -43,6 +48,11 @@ _all_tools = [
     FindReplaceTool(),
     AppendTool(),
     FuzzyMatchTool(),
+    RecordIDTool(),
+    DateTimeTool(),
+    GenerateRowsTool(),
+    RunningTotalTool(),
+    RankTool(),
 ]
 
 for t in _all_tools:
