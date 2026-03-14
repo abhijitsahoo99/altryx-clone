@@ -28,6 +28,8 @@ class InputDataTool(BaseTool):
             df = self._read_directory(config)
         elif source_type == "sql":
             df = self._read_sql(config)
+        elif source_type == "google_drive":
+            df = self._read_google_drive(config)
         else:
             raise ValueError(f"Unsupported source_type: {source_type}")
 
@@ -112,6 +114,25 @@ class InputDataTool(BaseTool):
 
         return {"output": df}
 
+    def _read_google_drive(self, config: dict[str, Any]) -> dict[str, pd.DataFrame]:
+        """Read a single file from Google Drive."""
+        from altryx.connectors.google_drive import GoogleDriveConnector
+
+        credentials = config.get("credentials_json", "")
+        oauth_token = config.get("oauth_token", "")
+        gdrive_file_id = config.get("gdrive_file_id", "")
+        file_format = config.get("file_format", "csv")
+
+        if not gdrive_file_id:
+            raise ValueError("Google Drive File ID is required")
+
+        connector = GoogleDriveConnector(credentials=credentials, oauth_token=oauth_token)
+        df = connector.read_single_file(
+            file_id=gdrive_file_id,
+            reader=file_format,
+        )
+        return {"output": df}
+
     def _auto_parse_dates(self, df: pd.DataFrame) -> pd.DataFrame:
         """Try to parse object columns that look like dates."""
         result = df.copy()
@@ -130,7 +151,7 @@ class InputDataTool(BaseTool):
 
     def get_config_schema(self) -> dict[str, Any]:
         return {
-            "source_type": {"type": "select", "options": ["file", "directory", "sql"], "default": "file"},
+            "source_type": {"type": "select", "options": ["file", "directory", "sql", "google_drive"], "default": "file"},
             "file_id": {"type": "file_select", "label": "File"},
             "file_format": {"type": "select", "options": ["csv", "xlsx", "json", "parquet"], "default": "csv"},
             "delimiter": {"type": "text", "default": ",", "label": "Delimiter"},
@@ -145,4 +166,7 @@ class InputDataTool(BaseTool):
             "connection_string": {"type": "text", "label": "Connection String (SQL)"},
             "query": {"type": "text", "label": "SQL Query"},
             "table_name": {"type": "text", "label": "Table Name"},
+            "credentials_json": {"type": "text", "label": "Google Service Account JSON path"},
+            "oauth_token": {"type": "text", "label": "Google OAuth Token"},
+            "gdrive_file_id": {"type": "text", "label": "Google Drive File ID"},
         }

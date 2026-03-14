@@ -65,4 +65,26 @@ export const api = {
 
   // Tools
   listTools: () => request<import("./types").ToolDefinition[]>("/api/tools"),
+
+  // Google Drive
+  googleDriveAuthUrl: (clientId: string, redirectUri: string, state = "") =>
+    request<{ auth_url: string }>("/api/connectors/google-drive/auth-url", {
+      method: "POST",
+      body: JSON.stringify({ client_id: clientId, redirect_uri: redirectUri, state }),
+    }),
+
+  googleDriveExchangeToken: (code: string, clientId: string, clientSecret: string, redirectUri: string) =>
+    request<{ access_token: string; refresh_token: string }>("/api/connectors/google-drive/token", {
+      method: "POST",
+      body: JSON.stringify({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri }),
+    }),
+
+  googleDriveListFiles: (oauthToken: string, folderId = "", filePattern = "*") =>
+    request<{ files: Array<{ FileName: string; FileId: string; MimeType: string; SizeBytes: number }>; count: number }>(
+      "/api/connectors/google-drive/list",
+      {
+        method: "POST",
+        body: JSON.stringify({ oauth_token: oauthToken, folder_id: folderId, file_pattern: filePattern }),
+      },
+    ),
 };

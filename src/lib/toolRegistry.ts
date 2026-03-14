@@ -26,6 +26,8 @@ import {
   ListOrdered,
   TrendingUp,
   Trophy,
+  FolderOpen,
+  FolderInput,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +53,8 @@ export const TOOLS: ToolInfo[] = [
   { type: "input_data", label: "Input Data", category: "IO", icon: FileInput, color: "#3b82f6", inputs: [], outputs: ["output"] },
   { type: "output_data", label: "Output Data", category: "IO", icon: FileOutput, color: "#3b82f6", inputs: ["input"], outputs: ["output"] },
   { type: "generate_rows", label: "Generate Rows", category: "IO", icon: ListOrdered, color: "#3b82f6", inputs: [], outputs: ["output"] },
+  { type: "directory", label: "Directory", category: "IO", icon: FolderOpen, color: "#3b82f6", inputs: [], outputs: ["output"] },
+  { type: "dynamic_input", label: "Dynamic Input", category: "IO", icon: FolderInput, color: "#3b82f6", inputs: ["file_list"], outputs: ["output"] },
 
   // Preparation
   { type: "filter", label: "Filter", category: "Preparation", icon: Filter, color: "#8b5cf6", inputs: ["input"], outputs: ["true", "false"] },

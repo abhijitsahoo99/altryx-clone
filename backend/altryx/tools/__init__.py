@@ -24,6 +24,8 @@ from altryx.tools.datetime_tool import DateTimeTool
 from altryx.tools.generate_rows import GenerateRowsTool
 from altryx.tools.running_total import RunningTotalTool
 from altryx.tools.rank import RankTool
+from altryx.tools.directory import DirectoryTool
+from altryx.tools.dynamic_input import DynamicInputTool
 from altryx.engine.registry import register_tool
 
 _all_tools = [
@@ -53,6 +55,8 @@ _all_tools = [
     GenerateRowsTool(),
     RunningTotalTool(),
     RankTool(),
+    DirectoryTool(),
+    DynamicInputTool(),
 ]
 
 for t in _all_tools:

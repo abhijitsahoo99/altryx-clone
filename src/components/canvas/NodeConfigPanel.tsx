@@ -309,7 +309,7 @@ export function NodeConfigPanel() {
         {/* === IO === */}
         {toolType === "input_data" && (
           <>
-            {renderSelect("source_type", "Source Type", ["file", "directory", "sql"], "file")}
+            {renderSelect("source_type", "Source Type", ["file", "directory", "sql", "google_drive"], "file")}
 
             {(config.source_type || "file") === "file" && (
               <>
@@ -367,6 +367,18 @@ export function NodeConfigPanel() {
                 </label>
               </>
             )}
+
+            {config.source_type === "google_drive" && (
+              <>
+                <div className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+                  Connect to Google Drive to read a single file. Use Dynamic Input to read multiple files.
+                </div>
+                {renderTextInput("oauth_token", "OAuth Access Token")}
+                {renderTextInput("credentials_json", "Service Account JSON path (alternative)")}
+                {renderTextInput("gdrive_file_id", "Google Drive File ID", "e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs")}
+                {renderSelect("file_format", "File Format", ["csv", "xlsx", "json", "parquet"], "csv")}
+              </>
+            )}
           </>
         )}
 
@@ -374,6 +386,58 @@ export function NodeConfigPanel() {
           <>
             {renderTextInput("filename", "Filename", "output", "output")}
             {renderSelect("format", "Format", ["csv", "xlsx", "json"], "csv")}
+          </>
+        )}
+
+        {toolType === "directory" && (
+          <>
+            {renderSelect("source", "Source", ["local", "google_drive"], "local")}
+            {(config.source || "local") === "local" && (
+              <>
+                {renderTextInput("directory_path", "Directory Path", "/path/to/directory")}
+                {renderTextInput("file_pattern", "File Pattern", "*.csv", "*")}
+                {renderCheckbox("include_subdirs", "Include subdirectories")}
+                {renderCheckbox("collect_full_path", "Include full path", true)}
+              </>
+            )}
+            {config.source === "google_drive" && (
+              <>
+                {renderTextInput("credentials_json", "Service Account JSON path")}
+                {renderTextInput("folder_id", "Google Drive Folder ID")}
+                {renderCheckbox("include_subdirs", "Include subdirectories")}
+              </>
+            )}
+            <div className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5">
+              Outputs: FileName, FullPath, Extension, SizeBytes, ModifiedDate
+            </div>
+          </>
+        )}
+
+        {toolType === "dynamic_input" && (
+          <>
+            {renderSelect("source", "Source", ["local", "google_drive"], "local")}
+            {(config.source || "local") === "local" && (
+              <>
+                {renderTextInput("directory_path", "Directory Path", "/path/to/files")}
+                {renderTextInput("file_pattern", "File Pattern", "*.csv", "*.*")}
+                {renderSelect("reader", "File Reader", ["csv", "excel", "parquet", "json"], "csv")}
+                {(config.reader || "csv") === "csv" && renderTextInput("delimiter", "CSV Delimiter", ",", ",")}
+                {renderCheckbox("include_subdirs", "Include subdirectories")}
+                {renderCheckbox("add_filename_column", "Add FileName column", true)}
+              </>
+            )}
+            {config.source === "google_drive" && (
+              <>
+                {renderTextInput("credentials_json", "Service Account JSON path")}
+                {renderTextInput("folder_id", "Google Drive Folder ID")}
+                {renderTextInput("file_pattern", "File Pattern", "*.csv", "*.*")}
+                {renderSelect("reader", "File Reader", ["csv", "excel", "parquet", "json"], "csv")}
+                {renderCheckbox("add_filename_column", "Add FileName column", true)}
+              </>
+            )}
+            <div className="text-xs text-green-600 bg-green-50 border border-green-100 rounded px-2 py-1.5">
+              Connect a Directory tool to the file_list input to use its output, or configure a path directly.
+            </div>
           </>
         )}
 
