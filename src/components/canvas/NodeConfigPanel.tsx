@@ -364,12 +364,91 @@ export function NodeConfigPanel() {
         )}
 
         {/* === Preparation === */}
-        {toolType === "filter" && (
-          <>
-            {columnHint}
-            {renderTextInput("expression", "Filter Expression", columns.length > 0 ? `e.g. ${columns[0]} > 30` : "e.g. age > 30")}
-          </>
-        )}
+        {toolType === "filter" && (() => {
+          const operators = ["==", "!=", ">", ">=", "<", "<=", "contains", "not contains", "startswith", "endswith", "isnull", "notnull"];
+          const buildExpr = (col: string, op: string, val: string) => {
+            if (!col) return "";
+            if (op === "isnull") return `${col}.isnull()`;
+            if (op === "notnull") return `${col}.notnull()`;
+            if (!val) return "";
+            const isNum = !isNaN(Number(val)) && val.trim() !== "";
+            if (op === "contains") return `${col}.str.contains("${val}")`;
+            if (op === "not contains") return `~${col}.str.contains("${val}")`;
+            if (op === "startswith") return `${col}.str.startswith("${val}")`;
+            if (op === "endswith") return `${col}.str.endswith("${val}")`;
+            return isNum ? `${col} ${op} ${val}` : `${col} ${op} "${val}"`;
+          };
+          const curCol = (config.filter_column as string) || "";
+          const curOp = (config.filter_operator as string) || "==";
+          const curVal = (config.filter_value as string) || "";
+          const needsValue = !["isnull", "notnull"].includes(curOp);
+
+          return (
+            <>
+              {columnHint}
+              {columns.length > 0 ? (
+                <>
+                  <label className="block">
+                    <span className="text-xs font-medium text-gray-600">Column</span>
+                    <select
+                      className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                      value={curCol}
+                      onChange={(e) => {
+                        updateConfig("filter_column", e.target.value);
+                        const expr = buildExpr(e.target.value, curOp, curVal);
+                        if (expr) updateConfig("expression", expr);
+                      }}
+                    >
+                      <option value="">Select column...</option>
+                      {columns.map((col) => (
+                        <option key={col} value={col}>{col}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-gray-600">Operator</span>
+                    <select
+                      className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                      value={curOp}
+                      onChange={(e) => {
+                        updateConfig("filter_operator", e.target.value);
+                        const expr = buildExpr(curCol, e.target.value, curVal);
+                        if (expr) updateConfig("expression", expr);
+                      }}
+                    >
+                      {operators.map((op) => (
+                        <option key={op} value={op}>{op}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {needsValue && (
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-600">Value</span>
+                      <input
+                        type="text"
+                        className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                        placeholder="e.g. 30 or NYC"
+                        value={curVal}
+                        onChange={(e) => {
+                          updateConfig("filter_value", e.target.value);
+                          const expr = buildExpr(curCol, curOp, e.target.value);
+                          if (expr) updateConfig("expression", expr);
+                        }}
+                      />
+                    </label>
+                  )}
+                  {(config.expression as string) && (
+                    <div className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5 font-mono break-all">
+                      {config.expression as string}
+                    </div>
+                  )}
+                </>
+              ) : (
+                renderTextInput("expression", "Filter Expression", "e.g. age > 30")
+              )}
+            </>
+          );
+        })()}
 
         {toolType === "select" && (
           <>
