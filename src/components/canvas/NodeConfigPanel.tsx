@@ -20,7 +20,7 @@ export function NodeConfigPanel() {
     if (toolType === "input_data") {
       api.listFiles().then(setFiles).catch(console.error);
     }
-  }, [toolType]);
+  }, [toolType, selectedNodeId]);
 
   if (!selectedNode || !toolInfo) return null;
 
@@ -133,12 +133,13 @@ export function NodeConfigPanel() {
                     className="mt-1 block w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                     value={(config.file_id as string) || ""}
                     onChange={(e) => {
+                      if (!selectedNodeId) return;
                       const file = files.find((f) => f.id === e.target.value);
-                      updateConfig("file_id", e.target.value);
-                      if (file) {
-                        updateConfig("filename", file.filename);
-                        updateConfig("file_format", file.file_format);
-                      }
+                      updateNodeConfig(selectedNodeId, {
+                        ...config,
+                        file_id: e.target.value,
+                        ...(file && { filename: file.filename, file_format: file.file_format }),
+                      });
                     }}
                   >
                     <option value="">Select a file...</option>
