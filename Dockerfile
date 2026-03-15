@@ -6,7 +6,6 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-ENV NEXT_PUBLIC_API_URL=http://localhost:8000
 RUN npm run build
 
 FROM python:3.11-slim
@@ -45,5 +44,6 @@ COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 ENV ALTRYX_DATA_DIR=/app/data
+ENV BACKEND_URL=http://localhost:8000
 
 CMD ["/app/start.sh"]
