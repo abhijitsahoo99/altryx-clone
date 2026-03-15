@@ -1,5 +1,8 @@
 node_modules
 .next
-backend/
 .git
 *.md
+backend/.venv
+backend/venv
+backend/data
+backend/tests
