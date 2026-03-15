@@ -15,9 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 
 # Copy Node.js from the node image
 COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
-COPY --from=frontend /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
-    ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 WORKDIR /app
 
@@ -29,11 +26,9 @@ RUN pip install --no-cache-dir ./backend
 # Create data directory
 RUN mkdir -p /app/data/uploads
 
-# Copy built frontend
-COPY --from=frontend /app/.next .next
-COPY --from=frontend /app/node_modules node_modules
-COPY --from=frontend /app/package.json package.json
-COPY --from=frontend /app/next.config.ts next.config.ts
+# Copy standalone Next.js output (includes node_modules it needs)
+COPY --from=frontend /app/.next/standalone ./
+COPY --from=frontend /app/.next/static .next/static
 COPY --from=frontend /app/public public
 
 # Copy sample data
