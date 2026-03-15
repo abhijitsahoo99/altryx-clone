@@ -13,7 +13,7 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Node.js from the node image
+# Copy Node.js runtime from the node image
 COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
 
 WORKDIR /app
@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir ./backend
 # Create data directory
 RUN mkdir -p /app/data/uploads
 
-# Copy standalone Next.js output (includes node_modules it needs)
+# Copy standalone Next.js output (includes only the node_modules it needs)
 COPY --from=frontend /app/.next/standalone ./
 COPY --from=frontend /app/.next/static .next/static
 COPY --from=frontend /app/public public
@@ -38,6 +38,10 @@ COPY sample-data/ /app/sample-data/
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
+# CRITICAL: Docker sets HOSTNAME to the container ID by default.
+# Next.js standalone server.js reads HOSTNAME to decide which interface to bind.
+# Without this override, it tries to bind to the container ID and fails silently.
+ENV HOSTNAME=0.0.0.0
 ENV ALTRYX_DATA_DIR=/app/data
 ENV BACKEND_URL=http://localhost:8000
 
