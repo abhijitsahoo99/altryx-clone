@@ -10,7 +10,7 @@ app = FastAPI(title="Altryx", version="0.1.0")
 
 allowed_origins = os.environ.get(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000",
+    "http://localhost:3000,https://*.up.railway.app",
 ).split(",")
 
 app.add_middleware(

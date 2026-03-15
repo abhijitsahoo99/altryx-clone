@@ -12,5 +12,5 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-# Start Next.js on the Railway-assigned PORT (or 3000)
-exec npx next start -p ${PORT:-3000}
+# Start Next.js standalone server on the Railway-assigned PORT (or 3000)
+exec node server.js
